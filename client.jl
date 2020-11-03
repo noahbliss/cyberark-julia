@@ -18,7 +18,7 @@ capass = a2var("capass", importedvars) #We'll replace this with a SecretBuffer a
 
 cookiejar = Dict{String, Set{HTTP.Cookie}}()
 
-function login(pvwauri, causer, capass)
+function login(pvwahost, pvwauri, causer, capass)
         if capass == ""
                 capass = Base.getpass("Please enter your CyberArk password ")
         else
@@ -57,7 +57,7 @@ function webreq(pvwauri, cookiejar, headerauth, query)
 end
 
 #Try a login
-headerauth = login(pvwauri, causer, capass)
+headerauth = login(pvwahost, pvwauri, causer, capass)
 
 #List accounts
 response = webreq(pvwauri, cookiejar, headerauth, "settings/accountslist")
