@@ -20,7 +20,7 @@ cookiejar = Dict{String, Set{HTTP.Cookie}}()
 
 function login(pvwahost, pvwauri, causer, capass)
         if capass == ""
-                capass = Base.getpass("Please enter your CyberArk password ")
+                capass = Base.getpass("Please enter your CyberArk password")
         else
                 capass = convert(Base.SecretBuffer, capass)
         end
