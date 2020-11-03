@@ -35,6 +35,7 @@ function login(pvwahost, pvwauri, causer, capass)
                 "additionalInfo" => ""
         ))
         response = HTTP.request("POST", url, headers, payload; require_ssl_verification = false, cookies = true, cookiejar = cookiejar)
+        Base.shred!(capass)
         if response.status == 200
                 for set in cookiejar[pvwahost]
                         if set.name == "CA66666"
@@ -52,12 +53,30 @@ function webreq(pvwauri, cookiejar, headerauth, query)
         headers = ["Content-Type" => "application/json", "X-CA66666" => headerauth ]
         response = HTTP.request("GET", url, headers; require_ssl_verification = false, cookies = true, cookiejar = cookiejar)
         #return String(response.body)
-        return JSON.parse(String(response.body))
+        if response.status == 200
+                return JSON.parse(String(response.body))
+        else
+                error(response.status)
+        end
         # return response.body
 end
 
-#Try a login
+#Make webreq a little more friendly
+function request(req)
+        try response = webreq(pvwauri, cookiejar, headerauth, req)
+                return response
+        catch e
+                if e.status == 401
+                        global headerauth = login(pvwahost, pvwauri, causer, capass)
+                        response = webreq(pvwauri, cookiejar, headerauth, req)
+                else
+                        return e.status
+                end
+        end
+end
+
+#Try a login initially.
 headerauth = login(pvwahost, pvwauri, causer, capass)
 
-#List accounts
-response = webreq(pvwauri, cookiejar, headerauth, "settings/accountslist")
+#List accounts.
+action = request("ExtendedAccounts")
