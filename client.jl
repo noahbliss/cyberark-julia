@@ -144,8 +144,10 @@ makedatastructures(caaccounts)
 
 accname = "LONGNAME_OF_ACCOUNT"
 target = "FQDN_OR_IP_OF_TARGET"
-
+reason = "Because I want to."
 # Figure out the account ID (less friendly numbers) of the account.
+
+
 accountid = accountlist[accname]["AccountID"]
 # Request the generated RDP file.
 psmstr = getpsm(pvwauri, cookiejar, headerauth, accountid, reason, target)
