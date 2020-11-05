@@ -142,16 +142,16 @@ caaccounts = request("ExtendedAccounts")
 makedatastructures(caaccounts)
 #accountlist and viewlist
 
-
-
-viewlist
 accname = "LONGNAME_OF_ACCOUNT"
 target = "FQDN_OR_IP_OF_TARGET"
 
+# Figure out the account ID (less friendly numbers) of the account.
 accountid = accountlist[accname]["AccountID"]
+# Request the generated RDP file.
 psmstr = getpsm(pvwauri, cookiejar, headerauth, accountid, reason, target)
 
 filename = "rdpswap.rdp"
 open(filename, "w")
 write(filename, psmstr)
 run(`ca-rdp $filename`)
+#rm(filename) #This is handled by ca-rdp
