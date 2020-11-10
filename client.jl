@@ -1,6 +1,4 @@
 #!/usr/bin/env julia
-import HTTP
-import JSON
 using DelimitedFiles
 using CyberArkPVWAClient
 
@@ -20,7 +18,7 @@ causer = a2var("causer", importedvars)
 
 function makedatastructures(caaccounts)
         viewlist = Dict()
-        accountlist = dict()
+        accountlist = Dict()
         for acc in caaccounts["Accounts"]
                 # Alias data for sanity's sake
                 safe = (try acc["Properties"]["Safe"] catch; nothing end)
@@ -43,6 +41,8 @@ function makedatastructures(caaccounts)
                         "Safe" => safe
                 )
         end
+        global viewlist
+        global accountlist
         return
 end
 
@@ -53,7 +53,7 @@ end
 function request(cookieset, query)
         try response = CyberArkPVWAClient.request(pvwauri, cookieset, query)
                 return response
-        catch e
+        catch e # This does weird things if we get other non-HTTP errors. Need to fix. 
                 if e.status == 401
                         global capass = Base.getpass("Please enter your CyberArk password")
                         global cookieset = CyberArkPVWAClient.login(pvwauri, method, causer, capass)
