@@ -1,6 +1,6 @@
-#!/usr/bin/env julia
-using DelimitedFiles
-using CyberArkPVWAClient
+# JUST CLIENT BITS BELOW:
+import HTTP
+import JSON
 
 #settingsfile = "settings.conf"
 backupsettingsfile = "$(homedir())/.config/cyberark-julia/settings.conf"
@@ -10,90 +10,55 @@ isfile(settingsfile) || println("Settings file is missing.") && exit(1)
 importedvars = readdlm(settingsfile, '=', String; skipblanks=true)
 a2var(key, a) = (c=1; for i in a[:, 1]; i == key && return a[c, 2]; c+=1; end || error("$key not found"))
 
-pvwauri = a2var("pvwauri", importedvars)
-method = a2var("method", importedvars)
-causer = a2var("causer", importedvars)
+pvwauri = a2var("pvwauri", importedvars) # https://cyberark.domain.local/PasswordVault
+method = a2var("method", importedvars) # ldap
+causer = a2var("causer", importedvars) # noah.bliss
+
+capass = Base.getpass("Please enter your CyberArk password")
+
+response = HTTP.request("POST", "http://localhost:8001/login", [("Content-Type", "application/json")],
+                JSON.json(Dict(
+                        "causer" => causer,
+                        "capass" => read(capass, String),
+                        "pvwauri" => pvwauri,
+                        "method" => method
+        )))
+Base.shred!(capass)
+
+
+username = "domain-admin"
+address = "domain.local"
+connection = "PSM-RDP"
+target = "dc01.domain.local"
+reason = "Because I want to."
 
 
 
-function makedatastructures(caaccounts)
-        viewlist = Dict()
-        accountlist = Dict()
-        for acc in caaccounts["Accounts"]
-                # Alias data for sanity's sake
-                safe = (try acc["Properties"]["Safe"] catch; nothing end)
-                addr = (try acc["Properties"]["Address"] catch; nothing end)
-                user = (try acc["Properties"]["UserName"] catch; nothing end)
-                name = (try acc["Properties"]["Name"] catch; nothing end)
-                id = (try acc["AccountID"] catch; nothing end)
-                # Add the root key for the safe if it doesn't exist yet.
-                try viewlist[safe] catch; global viewlist[safe] = Dict() end
-                # Add our account
-                viewlist[safe][name] = Dict(
-                        "Address" => addr,
-                        "Username" => user,
-                        "AccountID" => id
-                )
-                accountlist[name] = Dict(
-                        "Address" => addr,
-                        "Username" => user,
-                        "AccountID" => id,
-                        "Safe" => safe
-                )
-        end
-        global viewlist
-        global accountlist
-        return
-end
+response = HTTP.request("POST", "http://localhost:8001/psmconnect", [("Content-Type", "application/json")],
+                JSON.json(Dict(
+                        "username" => username,
+                        "address" => address,
+                        "connection" => connection,
+                        "target" => target,
+                        "reason" => reason
+        )))
 
-
-######
+psmstr = response.body |> String
 
 # Make webreq a little more friendly
-function request(cookieset, query)
-        try response = CyberArkPVWAClient.request(pvwauri, cookieset, query)
-                return response
-        catch e # This does weird things if we get other non-HTTP errors. Need to fix. 
-                if e.status == 401
-                        global capass = Base.getpass("Please enter your CyberArk password")
-                        global cookieset = CyberArkPVWAClient.login(pvwauri, method, causer, capass)
-                        response = CyberArkPVWAClient.request(pvwauri, cookieset, headerauth, query)
-                else
-                        return e.status
-                end
-        end
-end
-
-
-# Try a login initially.
-#headerauth = login(pvwauri, method, causer, capass)
-capass = Base.getpass("Please enter your CyberArk password")
-cookieset = CyberArkPVWAClient.login(pvwauri, method, causer, capass)
-
-# List accounts. This variable stores the original format from the CyberArk API.
-caaccounts = CyberArkPVWAClient.request(pvwauri, cookieset, "ExtendedAccounts")
-
-# Using request will automatically prompt for password if the previous cookie expired.
-caaccounts = request(cookieset, "ExtendedAccounts")
-
-
-# Make our format data structures.
-# Used in makedatastructures
-viewlist = Dict()
-accountlist = Dict()
-makedatastructures(caaccounts)
-#accountlist and viewlist
-
-accname = "LONGNAME_OF_ACCOUNT"
-target = "FQDN_OR_IP_OF_TARGET"
-reason = "Because I want to."
-# Figure out the account ID (less friendly numbers) of the account.
-
-
-accountid = accountlist[accname]["AccountID"]
-# Request the generated RDP file.
-
-psmstr = CyberArkPVWAClient.psmconnect(pvwauri, cookieset, accountid, reason, target)
+# function request(cookieset, query)
+#         try response = CyberArkPVWAClient.request(pvwauri, cookieset, query)
+#                 return response
+#         catch e # This does weird things if we get other non-HTTP errors. Need to fix.
+#                 if e.status == 401
+#                         global capass = Base.getpass("Please enter your CyberArk password")
+#                         global cookieset = CyberArkPVWAClient.login(pvwauri, method, causer, capass)
+#                         response = CyberArkPVWAClient.request(pvwauri, cookieset, headerauth, query)
+#                 else
+#                         return e.status
+#                 end
+#         end
+# end
 
 filename = "rdpswap.rdp"
 open(filename, "w")
