@@ -1,6 +1,33 @@
+#!/usr/bin/env julia
 # JUST CLIENT BITS BELOW:
 import HTTP
 import JSON
+using ArgParse
+using DelimitedFiles
+
+function parse_commandline()
+        s = ArgParseSettings()
+        @add_arg_table! s begin
+                "--username", "-u"
+                        help = "Username of the requested CyberArk credential."
+                        required = true
+                "--address", "-a"
+                        help = "Address listed in the requested CyberArk credential."
+                        required = true
+                "--connection", "-c"
+                        default = "PSM-RDP"
+                        help = "Connection component we will use. Default: PSM-RDP"
+                "--target", "-t"
+                        help = "IP or FQDN of the system we want to connect to with the requested credential."
+                        required = true
+                "--reason", "-r"
+                        default = "Connection brokered through Remmina, specifiying reason is not yet implemented."
+                        help = "The reason for the connection."
+        end
+        return parse_args(s)
+end
+
+args = parse_commandline()
 
 #settingsfile = "settings.conf"
 backupsettingsfile = "$(homedir())/.config/cyberark-julia/settings.conf"
@@ -13,28 +40,27 @@ a2var(key, a) = (c=1; for i in a[:, 1]; i == key && return a[c, 2]; c+=1; end ||
 pvwauri = a2var("pvwauri", importedvars) # https://cyberark.domain.local/PasswordVault
 method = a2var("method", importedvars) # ldap
 causer = a2var("causer", importedvars) # noah.bliss
+username = args["username"] # domain-admin
+address = args["address"] # domain.local
+connection = args["connection"] # PSM-RDP
+target = args["target"] # dc01.domain.local
+reason = args["reason"] # Because I want to.
 
-capass = Base.getpass("Please enter your CyberArk password")
+# capass = Base.getpass("Please enter your CyberArk password")
 
-response = HTTP.request("POST", "http://localhost:8001/login", [("Content-Type", "application/json")],
-                JSON.json(Dict(
-                        "causer" => causer,
-                        "capass" => read(capass, String),
-                        "pvwauri" => pvwauri,
-                        "method" => method
-        )))
-Base.shred!(capass)
+function login(causer, capass)
+        response = HTTP.request("POST", "http://localhost:8001/login", [("Content-Type", "application/json")],
+                        JSON.json(Dict(
+                                "causer" => causer,
+                                "capass" => read(capass, String),
+                                "pvwauri" => pvwauri,
+                                "method" => method
+                )))
+        Base.shred!(capass)
+end
 
-
-username = "domain-admin"
-address = "domain.local"
-connection = "PSM-RDP"
-target = "dc01.domain.local"
-reason = "Because I want to."
-
-
-
-response = HTTP.request("POST", "http://localhost:8001/psmconnect", [("Content-Type", "application/json")],
+function webreq(username, address, connection, target, reason)
+        HTTP.request("POST", "http://localhost:8001/psmconnect", [("Content-Type", "application/json")],
                 JSON.json(Dict(
                         "username" => username,
                         "address" => address,
@@ -42,23 +68,29 @@ response = HTTP.request("POST", "http://localhost:8001/psmconnect", [("Content-T
                         "target" => target,
                         "reason" => reason
         )))
+end
 
-psmstr = response.body |> String
+#Make webreq a little more friendly
+function psmconnect(username, address, connection, target, reason)
+        try response = webreq(username, address, connection, target, reason)
+                return String(response.body)
+        catch e
+                try if e.status == 401
+                                capass = Base.getpass("Please enter your CyberArk password")
+                                login(causer, capass)
+                                Base.shred!(capass)
+                                response = webreq(username, address, connection, target, reason)
+                                return String(response.body)
+                        end
+                catch err
+                        return err
+                end
+        end
+end
 
-# Make webreq a little more friendly
-# function request(cookieset, query)
-#         try response = CyberArkPVWAClient.request(pvwauri, cookieset, query)
-#                 return response
-#         catch e # This does weird things if we get other non-HTTP errors. Need to fix.
-#                 if e.status == 401
-#                         global capass = Base.getpass("Please enter your CyberArk password")
-#                         global cookieset = CyberArkPVWAClient.login(pvwauri, method, causer, capass)
-#                         response = CyberArkPVWAClient.request(pvwauri, cookieset, headerauth, query)
-#                 else
-#                         return e.status
-#                 end
-#         end
-# end
+psmstr = psmconnect(username, address, connection, target, reason)
+
+#psmstr = response.body |> String
 
 filename = "rdpswap.rdp"
 open(filename, "w")

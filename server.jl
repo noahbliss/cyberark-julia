@@ -76,7 +76,7 @@ Genie.route("/login", method = Genie.POST) do
           global caaccounts = CyberArkPVWAClient.request(pvwauri, cookieset, "ExtendedAccounts")
   catch e # Make this throw a 401 itself.
           Base.shred!(pass)
-          try e.status == 401 && return Genie.Response(401)
+          try e.status == 401 && return Genie.Responses.setstatus(401)
           catch e; return e; end
   end
 end
@@ -84,15 +84,19 @@ end
 Genie.route("/psmconnect", method = Genie.POST) do
   message = Genie.Requests.jsonpayload()
   # (:echo => (message["message"] * " ") ^ message["repeat"]) |> JSON.json
-  accountid = getaccountid(message["username"], message["address"], message["connection"], caaccounts)
+  accountid = ""
+  try accountid = getaccountid(message["username"], message["address"], message["connection"], caaccounts)
+  catch
+          return Genie.Responses.setstatus(401) #accountid not set, lets bait out a login.
+  end
   try psmstr = CyberArkPVWAClient.psmconnect(pvwauri, cookieset, accountid, message["reason"], message["target"])
           return psmstr
   catch e # Make this throw a 401 itself.
-          try e.status == 401 && return Genie.Response(401)
+          try e.status == 401
+                  return Genie.Responses.setstatus(401)
           catch e; return e; end
   end
 end
-
 
 Genie.up(8001)
 
