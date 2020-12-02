@@ -30,8 +30,8 @@ end
 args = parse_commandline()
 
 #settingsfile = "settings.conf"
-backupsettingsfile = "$(homedir())/.config/cyberark-julia/settings.conf"
-@isdefined(settingsfile) || isfile(backupsettingsfile) && (settingsfile = backupsettingsfile)
+usersettingsfile = "$(homedir())/.config/cyberark-julia/settings.conf"
+@isdefined(settingsfile) || isfile(usersettingsfile) && (settingsfile = usersettingsfile)
 isfile(settingsfile) || println("Settings file is missing.") && exit(1)
 
 importedvars = readdlm(settingsfile, '=', String; skipblanks=true)
