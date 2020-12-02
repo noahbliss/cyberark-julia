@@ -2,6 +2,11 @@
 # JUST CLIENT BITS BELOW:
 
 #We will only support LONG FORMAT arguments.
+#Defaults
+connection="PSM-RDP"
+reason="Because I want to."
+rdpswapfile="rdpswap.rdp"
+
 validflags="username address connection target reason"
 count=1
 for arg in $@
@@ -36,58 +41,41 @@ if [ -z $settingsfile ]; then settingsfile=$usersettingsfile; fi
 if ! [ -f $settingsfile ]; then echo "Settings file is missing."; exit 1; fi
 source $usersettingsfile
 
-
 login() {
-        curl --header "Content-Type: application/json" \
-          --request POST \
-          --data '{"causer":"'"$causer"'","capass":"'"$capass"'","pvwauri":"'"$pvwauri"'","method":"'"$method"'"}' \
-          "http://localhost:8001/login"
-        capass="notyourpassword"
+    read -sp "Enter your CyberArk password (will not echo): " capass
+    echo #make a new line
+    resp=$(curl -s --header "Content-Type: application/json" \
+        --request POST \
+        --data '{"causer":"'"$causer"'","capass":"'"$capass"'","pvwauri":"'"$pvwauri"'","method":"'"$method"'"}' \
+        "http://localhost:8001/login")
+    echo #make a new line
+    capass="notyourpassword"
+    if [ $resp == "OK" ]; then
+        echo "Login response is good."
+    fi
 }
 
-read -sp "Enter your CyberArk password (will not echo): " capass
-echo #make a new line
+webreq() {
+    resp=1337
+    while [ $resp != "200" ]; do
+        resp=$(curl -s -w "%{http_code}" -o "$rdpswapfile" --header "Content-Type: application/json" \
+            --request POST \
+            --data '{"username":"'"$username"'","address":"'"$address"'","connection":"'"$connection"'","target":"'"$target"'","reason":"'"$reason"'"}' \
+            "http://localhost:8001/psmconnect")
+        if [ $resp != "200" ]; then
+            echo "Response $resp"
+            login
+        fi
+    done
+    echo "Response looks good! Wrote $rdpswapfile"
+    ca-rdp $rdpswapfile
+    # echo $data > rdpswap.rdp
+    # ca-rdp rdpswap.rdp
+}
 
-login
-return=$?
-echo #make a new line
-echo $return
 
-# ---
-#
-# function webreq(username, address, connection, target, reason)
-#         HTTP.request("POST", "http://localhost:8001/psmconnect", [("Content-Type", "application/json")],
-#                 JSON.json(Dict(
-#                         "username" => username,
-#                         "address" => address,
-#                         "connection" => connection,
-#                         "target" => target,
-#                         "reason" => reason
-#         )))
-# end
-#
-# #Make webreq a little more friendly
-# function psmconnect(username, address, connection, target, reason)
-#         try response = webreq(username, address, connection, target, reason)
-#                 return String(response.body)
-#         catch e
-#                 try if e.status == 401
-#                                 capass = Base.getpass("Please enter your CyberArk password")
-#                                 login(causer, capass)
-#                                 Base.shred!(capass)
-#                                 response = webreq(username, address, connection, target, reason)
-#                                 return String(response.body)
-#                         end
-#                 catch err
-#                         return err
-#                 end
-#         end
-# end
-#
-# psmstr = psmconnect(username, address, connection, target, reason)
-#
-# #psmstr = response.body |> String
-#
+webreq
+
 # filename = "rdpswap.rdp"
 # open(filename, "w")
 # write(filename, psmstr)
