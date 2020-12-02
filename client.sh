@@ -1,12 +1,11 @@
 #!/usr/bin/env bash
-# JUST CLIENT BITS BELOW:
 
-#We will only support LONG FORMAT arguments.
 #Defaults
 connection="PSM-RDP"
 reason="Because I want to."
 rdpswapfile="rdpswap.rdp"
 
+#We will only support LONG FORMAT arguments.
 validflags="username address connection target reason"
 count=1
 for arg in $@
@@ -48,7 +47,6 @@ login() {
         --request POST \
         --data '{"causer":"'"$causer"'","capass":"'"$capass"'","pvwauri":"'"$pvwauri"'","method":"'"$method"'"}' \
         "http://localhost:8001/login")
-    echo #make a new line
     capass="notyourpassword"
     if [ $resp == "OK" ]; then
         echo "Login response is good."
@@ -69,15 +67,7 @@ webreq() {
     done
     echo "Response looks good! Wrote $rdpswapfile"
     ca-rdp $rdpswapfile
-    # echo $data > rdpswap.rdp
-    # ca-rdp rdpswap.rdp
 }
 
 
 webreq
-
-# filename = "rdpswap.rdp"
-# open(filename, "w")
-# write(filename, psmstr)
-# run(`ca-rdp $filename`)
-# #rm(filename) #This is handled by ca-rdp
