@@ -74,6 +74,7 @@ Genie.route("/login", method = Genie.POST) do
           Base.shred!(pass)
           # Refresh account list:
           global caaccounts = CyberArkPVWAClient.request(pvwauri, cookieset, "ExtendedAccounts")
+          return("OK") # If we remove this line, we return the list of accounts to the requester. Potential security issue depending on use case.
   catch e # Make this throw a 401 itself.
           Base.shred!(pass)
           try e.status == 401 && return Genie.Responses.setstatus(401)
@@ -100,19 +101,19 @@ end
 
 Genie.up(8001)
 
-
-
-### Build our UI
-
-# Try a login initially.
-capass = Base.getpass("Please enter your CyberArk password")
-cookieset = CyberArkPVWAClient.login(pvwauri, method, causer, capass)
-
-# List accounts. This variable stores the original format from the CyberArk API.
-caaccounts = CyberArkPVWAClient.request(pvwauri, cookieset, "ExtendedAccounts")
-
-# Make our human-friendlier data structures.
-# Used in makedatastructures
-viewlist = Dict()
-accountlist = Dict()
-makedatastructures(caaccounts)
+# ---
+#
+# ### Build our UI
+#
+# # Try a login initially.
+# capass = Base.getpass("Please enter your CyberArk password")
+# cookieset = CyberArkPVWAClient.login(pvwauri, method, causer, capass)
+#
+# # List accounts. This variable stores the original format from the CyberArk API.
+# caaccounts = CyberArkPVWAClient.request(pvwauri, cookieset, "ExtendedAccounts")
+#
+# # Make our human-friendlier data structures.
+# # Used in makedatastructures
+# viewlist = Dict()
+# accountlist = Dict()
+# makedatastructures(caaccounts)
