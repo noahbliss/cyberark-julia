@@ -31,7 +31,7 @@ args = parse_commandline()
 
 #settingsfile = "settings.conf"
 usersettingsfile = "$(homedir())/.config/cyberark-julia/settings.conf"
-@isdefined(settingsfile) || isfile(usersettingsfile) && (settingsfile = usersettingsfile)
+@isdefined(settingsfile) || isfile(usersettingsfile) && (settingsfile = usersettingsfile) #If settings file isn't defined, use usersettingsfile
 isfile(settingsfile) || println("Settings file is missing.") && exit(1)
 
 importedvars = readdlm(settingsfile, '=', String; skipblanks=true)
